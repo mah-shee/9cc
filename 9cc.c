@@ -104,7 +104,8 @@ Token *tokenize() {
       continue;
     }
 
-    if (*p == '+' || *p == '-') {
+    // Punctuator
+    if (strchr("+-*/()", *p)) {
       cur = new_token(TK_RESERVED, cur, p++);
       continue;
     }
@@ -156,9 +157,11 @@ Node *new_node_num(int val) {
 Node *expr();
 Node *mul();
 Node *primary();
+Node *unary();
 
+
+// expr = mul ("+" mul | "-" mul)*
 Node *expr() {
-
   Node *node = mul();
 
   for (;;) {
@@ -171,19 +174,21 @@ Node *expr() {
   }
 }
 
+// mul = unary ("*" unary | "/" unary)*
 Node *mul() {
-  Node *node = primary();
+  Node *node = unary();
 
   for (;;) {
     if (consume('*'))
-      node = new_node(ND_MUL, node, primary());
+      node = new_node(ND_MUL, node, unary());
     else if (consume('/'))
-      node = new_node(ND_DIV, node, primary());
+      node = new_node(ND_DIV, node, unary());
     else
       return node;
   }
 }
 
+// primary = "(" expr ")" | num
 Node *primary() {
   // 次のトークンが"("なら、"(" expr ")"のはず
   if (consume('(')) {
@@ -195,6 +200,16 @@ Node *primary() {
   // そうでなければ数値のはず
   return new_node_num(expect_number());
 }
+
+Node *unary() {
+
+  if (consume('+'))
+    return primary();
+  if (consume('-'))
+    return new_node(ND_SUB, new_node_num(0), primary());
+  return primary();
+}
+
 void gen(Node *node) {
   if (node->kind == ND_NUM) {
     printf("  push %d\n", node->val);
